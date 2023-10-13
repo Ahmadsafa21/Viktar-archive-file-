@@ -5,7 +5,7 @@ CFLAGS = $(DEBUG) -Wextra -Wshadow -Wunreachable-code -Wredundant-decls \
 				  -Wmissing-declarations -Wold-style-definition \
 				  -Wmissing-prototypes -Wdeclaration-after-statement \
 				  -Wno-return-local-addr -Wunsafe-loop-optimizations \
-				  -Wuninitialized $(DEFINES)
+				  -Wuninitialized -Wall -Werror $(DEFINES)
 PROG1 = viktar
 PROG2 = 
 PROG3 = 

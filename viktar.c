@@ -1,17 +1,16 @@
 #include <stdio.h>
-#include <grp.h>
-#include <stdint.h>
-#include <pwd.h>
-#include <time.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
+#include <grp.h>
+#include <time.h>
+#include <pwd.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 
-#define OPTIONS "xctTf:hv"
 #define c 1
 #define x 2
 #define t 3
@@ -26,7 +25,7 @@ int main(int argc, char *argv[]){
 	struct passwd *pid;
 	struct group *gp;
 	struct tm *lt;
-	int ofd = STDOUT_FILENO;
+	int ofd = STDOUT_FILENO; //points to stdout
 	int ifd = STDIN_FILENO;  //points to stdin
 	int action = 0;
 	char *fileName = NULL;
@@ -55,8 +54,6 @@ int main(int argc, char *argv[]){
 				action = T;
 				break;
 			case 'f':
-			//ask about input vs ouput
-				//strcpy(fileName, optarg);
 				fileName = optarg;
 				break;
 			case 'h':
@@ -191,8 +188,6 @@ int main(int argc, char *argv[]){
 
 	}
 
-
-
 	else if(action == c){
 		size_t temp = strlen(VIKTAR_FILE);
 		if(fileName != NULL) {
@@ -204,14 +199,7 @@ int main(int argc, char *argv[]){
 				exit(EXIT_FAILURE);
 			}
 		}
-	//    mode_t    st_mode;        /* File type and mode */
-	//    uid_t     st_uid;         /* User ID of owner */
-	//    gid_t     st_gid;         /* Group ID of owner */
-	//    off_t     st_size;        /* Total size, in bytes */
-	//
-	//    struct timespec st_atim;  /* Time of last access */
-	//    struct timespec st_mtim;  /* Time of last modification */
-	//    struct timespec st_ctim;  /* Time of last status change */
+
 		write(ofd, VIKTAR_FILE, temp);
 		for(int i = optind; i < argc; ++i){
 			char buff[100] = {'\0'};
@@ -241,24 +229,56 @@ int main(int argc, char *argv[]){
 			}
 			close(ifd);
 		}
-
-			//read(ifd, &data, sizeof(viktar_header_t) );
-			//write(ofd, argv[i], VIKTAR_MAX_FILE_NAME_LEN);
-
-//			write(ofd, &sb.st_mode, sizeof(mode_t) );
-//			write(ofd, &sb.st_uid, sizeof(sb.st_uid) );
-//			write(ofd, &sb.st_gid, sizeof(sb.st_gid) );
-//			write(ofd, &sb.st_size, sizeof() );
-//
-//			write(ofd, &sb.st_atim, sizeof(sb.st_atim) );
-//			write(ofd, &sb.st_mtim, sizeof(sb.st_mtim) );
-//			write(ofd, &sb.st_ctim, sizeof(sb.st_ctim) );
-			//write(ofd, &sb, sizeof(sb));
-
-
 	}
 
 	else if(action == x){
+		if(fileName != NULL){
+			ifd = open(fileName, O_RDONLY);
+			if (ifd < 0){
+				fprintf(stderr, "cannot open %s for input", optarg);
+				exit(EXIT_FAILURE);
+			}
+		}
+		memset(stuff, 0, 100);
+		read(ifd, stuff, strlen(VIKTAR_FILE));
+		if(strncmp(stuff, VIKTAR_FILE, strlen(VIKTAR_FILE) ) != 0){
+			fprintf(stderr, "invalid viktar file\n");
+			exit(EXIT_FAILURE);
+		}
+		while(read(ifd, &data, sizeof(viktar_header_t)) > 0){
+			int bytes_read = 0;
+			char buffer[100] = {'\0'};
+			memset(&sb, 0, sizeof(sb) );
+			ofd = open(data.viktar_name
+				, O_WRONLY | O_TRUNC | O_CREAT
+				, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+			if (stat(data.viktar_name, &sb) == -1) {
+				perror("lstat");
+				exit(EXIT_FAILURE);
+        	}
+			sb.st_mode = data.st_mode;
+			sb.st_uid = data.st_uid;
+			sb.st_gid = data.st_gid;
+			sb.st_size = data.st_size;
+
+			while((bytes_read = read(ifd, buffer, 100) ) != 0 ){
+				write(ofd, buffer, bytes_read);
+			}
+
+
+			sb.st_atim = data.st_atim;
+			sb.st_mtim = data.st_mtim;
+			sb.st_ctim = data.st_ctim;
+
+			lseek(ifd, data.st_size,SEEK_CUR);
+		}
+		close(ifd);
+		exit(EXIT_SUCCESS);
+
+		
+
+
 	}
 
 
