@@ -191,8 +191,8 @@ int main(int argc, char *argv[]){
 		size_t temp = strlen(VIKTAR_FILE);
 		if(fileName != NULL) {
 			ofd = open(fileName
-				, O_WRONLY | O_TRUNC | O_CREAT
-				, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 0644);
+	 			, O_WRONLY | O_TRUNC | O_CREAT
+				, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 			if (ofd < 0){
 				fprintf(stderr, "cannot open %s for output", optarg);
 				exit(EXIT_FAILURE);
@@ -209,7 +209,7 @@ int main(int argc, char *argv[]){
         	}
 			memset(&data, 0, sizeof(data) );
 			strncpy(data.viktar_name, argv[i], VIKTAR_MAX_FILE_NAME_LEN);
-			data.st_mode = sb.st_mode;
+			//data.st_mode = sb.st_mode;
 			data.st_uid = sb.st_uid;
 			data.st_gid = sb.st_gid;
 			data.st_size = sb.st_size;
@@ -226,6 +226,11 @@ int main(int argc, char *argv[]){
 				write(ofd, buff, bytesRad);
 			}
 			close(ifd);
+			if(fchmod(ofd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1){
+				fprintf(stderr, "Faile to change mod to desired mods\n");
+			}
+			close(ofd);
+			exit(EXIT_SUCCESS);
 		}
 	}
 
