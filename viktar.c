@@ -32,6 +32,7 @@ int main(int argc, char *argv[]){
 	char stuff[100];
 	char out[200]; 
 	char symode[200];
+	mode_t oldMode = 0;
 	
 	struct stat sb;
 	viktar_header_t data; 
@@ -71,11 +72,9 @@ int main(int argc, char *argv[]){
 				exit(EXIT_SUCCESS);
 			case 'v':
 				printf("verbose enabled");
-				exit(EXIT_SUCCESS);
 				break;
 			default:
 				fprintf(stderr, "Invalid option: %c\n",opt );
-				exit(EXIT_FAILURE);
 				break;
 		}
 	}
@@ -190,7 +189,9 @@ int main(int argc, char *argv[]){
 	else if(action == c){
 		size_t temp = strlen(VIKTAR_FILE);
 		if(fileName != NULL) {
-			ofd = open(fileName
+		char fileNameTrunc[19] = {'\0'};
+		strncpy(fileNameTrunc, fileName, VIKTAR_MAX_FILE_NAME_LEN);
+			ofd = open(fileNameTrunc
 	 			, O_WRONLY | O_TRUNC | O_CREAT);
 			if (ofd < 0){
 				fprintf(stderr, "cannot open %s for output", optarg);
@@ -208,13 +209,14 @@ int main(int argc, char *argv[]){
         	}
 			memset(&data, 0, sizeof(data) );
 			strncpy(data.viktar_name, argv[i], VIKTAR_MAX_FILE_NAME_LEN);
-			//data.st_mode = sb.st_mode;
+			data.st_mode = sb.st_mode;
 			data.st_uid = sb.st_uid;
 			data.st_gid = sb.st_gid;
 			data.st_size = sb.st_size;
 
 			data.st_atim = sb.st_atim;
 			data.st_mtim = sb.st_mtim;
+			data.st_ctim = sb.st_ctim;
 
 			write(ofd, &data, sizeof(viktar_header_t));
 			
@@ -277,6 +279,7 @@ int main(int argc, char *argv[]){
 
 				sb.st_atim = data.st_atim;
 				sb.st_mtim = data.st_mtim;
+				sb.st_ctim = data.st_ctim;
 			}
 		}
 		else{ //EXTRACT ALL FILES
@@ -298,6 +301,9 @@ int main(int argc, char *argv[]){
 				bytes_read = 0;
 				
 				memset(&sb, 0, sizeof(sb) );
+
+
+				oldMode = umask(0);
 				ofd = open(data.viktar_name
 					, O_WRONLY | O_TRUNC | O_CREAT
 					, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -306,6 +312,7 @@ int main(int argc, char *argv[]){
 					perror("stat");
 					exit(EXIT_FAILURE);
 				}
+
 				sb.st_mode = data.st_mode;
 				sb.st_uid = data.st_uid;
 				sb.st_gid = data.st_gid;
@@ -316,12 +323,15 @@ int main(int argc, char *argv[]){
 
 				sb.st_atim = data.st_atim;
 				sb.st_mtim = data.st_mtim;
+				sb.st_ctim = data.st_ctim;
+
 
 			}
+			close(ifd);
+			close(ofd);
+			umask(oldMode);
+			exit(EXIT_SUCCESS);
 		}
-		close(ifd);
-		close(ofd);
-		exit(EXIT_SUCCESS);
 	}
 	return EXIT_SUCCESS;
 }
