@@ -79,7 +79,6 @@ int main(int argc, char *argv[]){
 				break;
 		}
 	}
-	//ask about lseek
 	
 	if (action == t){
 		if(fileName != NULL && strcmp(fileName, "stdin") != 0){
@@ -193,7 +192,7 @@ int main(int argc, char *argv[]){
 		if(fileName != NULL) {
 			ofd = open(fileName
 				, O_WRONLY | O_TRUNC | O_CREAT
-				, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+				, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 0644);
 			if (ofd < 0){
 				fprintf(stderr, "cannot open %s for output", optarg);
 				exit(EXIT_FAILURE);
@@ -205,7 +204,7 @@ int main(int argc, char *argv[]){
 			char buff[100] = {'\0'};
 			int bytesRad = 0;
 			if (stat(argv[i], &sb) == -1) {
-				perror("lstat");
+				perror("stat");
 				exit(EXIT_FAILURE);
         	}
 			memset(&data, 0, sizeof(data) );
@@ -245,16 +244,19 @@ int main(int argc, char *argv[]){
 			fprintf(stderr, "invalid viktar file\n");
 			exit(EXIT_FAILURE);
 		}
+		if(optind) 
 		while(read(ifd, &data, sizeof(viktar_header_t)) > 0){
 			int bytes_read = 0;
-			char buffer[100] = {'\0'};
+//			char buffer[100] = {'\0'};
+			
+			char *buffer = malloc(data.st_size);
 			memset(&sb, 0, sizeof(sb) );
 			ofd = open(data.viktar_name
 				, O_WRONLY | O_TRUNC | O_CREAT
 				, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
 			if (stat(data.viktar_name, &sb) == -1) {
-				perror("lstat");
+				perror("stat");
 				exit(EXIT_FAILURE);
         	}
 			sb.st_mode = data.st_mode;
@@ -262,29 +264,24 @@ int main(int argc, char *argv[]){
 			sb.st_gid = data.st_gid;
 			sb.st_size = data.st_size;
 
-			while((bytes_read = read(ifd, buffer, 100) ) != 0 ){
-				write(ofd, buffer, bytes_read);
-			}
+			bytes_read = read(ifd, buffer, (int)data.st_size);
+			write(ofd, buffer, bytes_read);
+
+//			while((bytes_read = read(ifd, buffer, 100)) && data.st_size != 0){
+//				write(ofd, buffer, bytes_read);
+//				//lseek(ifd, data.st_size, SEEK_CUR);
+//			}
 
 
 			sb.st_atim = data.st_atim;
 			sb.st_mtim = data.st_mtim;
 			sb.st_ctim = data.st_ctim;
 
-			lseek(ifd, data.st_size,SEEK_CUR);
 		}
 		close(ifd);
+		close(ofd);
 		exit(EXIT_SUCCESS);
-
-		
-
-
 	}
-
-
-
-
-
 
 
 	return EXIT_SUCCESS;
