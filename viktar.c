@@ -216,7 +216,6 @@ int main(int argc, char *argv[]){
 
 			data.st_atim = sb.st_atim;
 			data.st_mtim = sb.st_mtim;
-			data.st_ctim = sb.st_ctim;
 
 			write(ofd, &data, sizeof(viktar_header_t));
 			
@@ -231,59 +230,96 @@ int main(int argc, char *argv[]){
 	}
 
 	else if(action == x){
-		if(fileName != NULL){
-			ifd = open(fileName, O_RDONLY);
-			if (ifd < 0){
-				fprintf(stderr, "cannot open %s for input", optarg);
-				exit(EXIT_FAILURE);
+		int bytes_read = 0;
+		char *buffer = NULL;
+		if(optind < argc){ //EXTRACT FILES ON COMMAND LINE
+			for(int i = optind; i < argc; ++i){
+				if(fileName != NULL){
+					ifd = open(fileName, O_RDONLY);
+					if (ifd < 0){
+						fprintf(stderr, "cannot open %s for input", optarg);
+						exit(EXIT_FAILURE);
+					}
+				}
+				memset(stuff, 0, 100);
+				read(ifd, stuff, strlen(VIKTAR_FILE));
+				if(strncmp(stuff, VIKTAR_FILE, strlen(VIKTAR_FILE) ) != 0){
+					fprintf(stderr, "invalid viktar file\n");
+					exit(EXIT_FAILURE);
+				}
+				while(read(ifd, &data, sizeof(viktar_header_t)) > 0 ){
+					if(strcmp(argv[i], data.viktar_name) == 0)
+						break;
+					lseek(ifd, data.st_size, SEEK_CUR);
+				}
+				buffer = malloc(data.st_size);
+				bytes_read = 0;
+				
+				memset(&sb, 0, sizeof(sb) );
+				ofd = open(argv[i]
+					, O_WRONLY | O_TRUNC | O_CREAT
+					, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+				if (stat(argv[i], &sb) == -1) {
+					perror("stat");
+					exit(EXIT_FAILURE);
+				}
+				sb.st_mode = data.st_mode;
+				sb.st_uid = data.st_uid;
+				sb.st_gid = data.st_gid;
+				sb.st_size = data.st_size;
+
+				bytes_read = read(ifd, buffer, (int)data.st_size);
+				write(ofd, buffer, bytes_read);
+
+				sb.st_atim = data.st_atim;
+				sb.st_mtim = data.st_mtim;
 			}
 		}
-		memset(stuff, 0, 100);
-		read(ifd, stuff, strlen(VIKTAR_FILE));
-		if(strncmp(stuff, VIKTAR_FILE, strlen(VIKTAR_FILE) ) != 0){
-			fprintf(stderr, "invalid viktar file\n");
-			exit(EXIT_FAILURE);
-		}
-		if(optind) 
-		while(read(ifd, &data, sizeof(viktar_header_t)) > 0){
-			int bytes_read = 0;
-//			char buffer[100] = {'\0'};
-			
-			char *buffer = malloc(data.st_size);
-			memset(&sb, 0, sizeof(sb) );
-			ofd = open(data.viktar_name
-				, O_WRONLY | O_TRUNC | O_CREAT
-				, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-
-			if (stat(data.viktar_name, &sb) == -1) {
-				perror("stat");
+		else{ //EXTRACT ALL FILES
+			if(fileName != NULL){
+				ifd = open(fileName, O_RDONLY);
+				if (ifd < 0){
+					fprintf(stderr, "cannot open %s for input", optarg);
+					exit(EXIT_FAILURE);
+				}
+			}
+			memset(stuff, 0, 100);
+			read(ifd, stuff, strlen(VIKTAR_FILE));
+			if(strncmp(stuff, VIKTAR_FILE, strlen(VIKTAR_FILE) ) != 0){
+				fprintf(stderr, "invalid viktar file\n");
 				exit(EXIT_FAILURE);
-        	}
-			sb.st_mode = data.st_mode;
-			sb.st_uid = data.st_uid;
-			sb.st_gid = data.st_gid;
-			sb.st_size = data.st_size;
+			}
+			while(read(ifd, &data, sizeof(viktar_header_t)) > 0){
+				buffer = malloc(data.st_size);
+				bytes_read = 0;
+				
+				memset(&sb, 0, sizeof(sb) );
+				ofd = open(data.viktar_name
+					, O_WRONLY | O_TRUNC | O_CREAT
+					, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
-			bytes_read = read(ifd, buffer, (int)data.st_size);
-			write(ofd, buffer, bytes_read);
+				if (stat(data.viktar_name, &sb) == -1) {
+					perror("stat");
+					exit(EXIT_FAILURE);
+				}
+				sb.st_mode = data.st_mode;
+				sb.st_uid = data.st_uid;
+				sb.st_gid = data.st_gid;
+				sb.st_size = data.st_size;
 
-//			while((bytes_read = read(ifd, buffer, 100)) && data.st_size != 0){
-//				write(ofd, buffer, bytes_read);
-//				//lseek(ifd, data.st_size, SEEK_CUR);
-//			}
+				bytes_read = read(ifd, buffer, (int)data.st_size);
+				write(ofd, buffer, bytes_read);
 
+				sb.st_atim = data.st_atim;
+				sb.st_mtim = data.st_mtim;
 
-			sb.st_atim = data.st_atim;
-			sb.st_mtim = data.st_mtim;
-			sb.st_ctim = data.st_ctim;
-
+			}
 		}
 		close(ifd);
 		close(ofd);
 		exit(EXIT_SUCCESS);
 	}
-
-
 	return EXIT_SUCCESS;
 }
 
