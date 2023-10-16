@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+
 
 #define c 1
 #define x 2
@@ -32,6 +34,7 @@ int main(int argc, char *argv[]){
 	char stuff[100];
 	char out[200]; 
 	char symode[200];
+	struct timespec times[2];
 	mode_t oldMode = 0;
 	
 	struct stat sb;
@@ -59,16 +62,16 @@ int main(int argc, char *argv[]){
 				break;
 			case 'h':
 				printf("help text\n");
-				printf("./viktar\n");
-				printf("Options: xctTf:hv\n");
-				printf("-x      extract file/files from archive\n");
-				printf("-c		create an archive file\n");
-				printf("-t		display a short table of contents of the archive file\n");
-				printf("-T		display a long table of contents of the archive file\n");
-				printf("Only one of xctT can be specified\n");
-				printf("-f filename	use filename as the archive file\n");
-				printf("-v		give verbose diagnostic messages\n");
-				printf("-h		display this AMAZING help message\n");
+				printf("\t./viktar\n");
+				printf("\tOptions:\txctTf:hv\n");
+				printf("\t\t-x\t\textract file/files from archive\n");
+				printf("\t\t-c\t\tcreate an archive file\n");
+				printf("\t\t-t\t\tdisplay a short table of contents of the archive file\n");
+				printf("\t\t-T\t\tdisplay a long table of contents of the archive file\n");
+				printf("\t\tOnly one of xctT can be specified\n");
+				printf("\t\t-f filename\tuse filename as the archive file\n");
+				printf("\t\t-v\t\tgive verbose diagnostic messages\n");
+				printf("\t\t-h\t\tdisplay this AMAZING help message\n");
 				exit(EXIT_SUCCESS);
 			case 'v':
 				printf("verbose enabled");
@@ -118,7 +121,11 @@ int main(int argc, char *argv[]){
 				exit(EXIT_FAILURE);
 			}
 		}
+		else{
+			fileName = "stdin";
+		}
 
+		
 		printf("Contents of viktar file: \"%s\"\n", fileName);
 
 		memset(stuff, 0, 100);
@@ -231,6 +238,7 @@ int main(int argc, char *argv[]){
 		if(fchmod(ofd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1){
 			fprintf(stderr, "Faile to change mod to desired mods\n");
 		}
+		close(ofd);
 		exit(EXIT_SUCCESS);
 	}
 
@@ -318,17 +326,25 @@ int main(int argc, char *argv[]){
 				sb.st_gid = data.st_gid;
 				sb.st_size = data.st_size;
 
-				bytes_read = read(ifd, buffer, (int)data.st_size);
+				bytes_read = read(ifd, buffer, data.st_size);
 				write(ofd, buffer, bytes_read);
 
 				sb.st_atim = data.st_atim;
 				sb.st_mtim = data.st_mtim;
 				sb.st_ctim = data.st_ctim;
+				//fchmod here with st_mode
+				fchmod(ofd, data.st_mode);
+				//futimes with array of both atime and utime
+				times[0] = data.st_atim;
+				times[1] = data.st_mtim;
+				if(futimens(ofd, times) == -1){
+					fprintf(stderr, "Error, couldn't change file atime and mtim\n");
+				}
+				close(ofd);
 
 
 			}
 			close(ifd);
-			close(ofd);
 			umask(oldMode);
 			exit(EXIT_SUCCESS);
 		}
