@@ -43,7 +43,7 @@ int main(int argc, char *argv[]){
 
 
 
-	while( (opt = getopt(argc, argv, OPTIONS)) != -1) {
+	while( (opt = getopt(argc, argv, OPTIONS)) != -1) { //manage command line arguments
 		switch(opt){
 			case 'x':
 				action = x;
@@ -74,7 +74,7 @@ int main(int argc, char *argv[]){
 				printf("\t\t-h\t\tdisplay this AMAZING help message\n");
 				exit(EXIT_SUCCESS);
 			case 'v':
-				printf("verbose enabled");
+				fprintf(stderr, "verbose enabled\n");
 				break;
 			default:
 				fprintf(stderr, "Invalid option: %c\n",opt );
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]){
 			printf("\tfile name: %s\n", data.viktar_name);
 
 			memset(symode, 0, 200);
-			switch (data.st_mode & S_IFMT) {
+			switch (data.st_mode & S_IFMT) {//manage the mode for each file
 				case S_IFDIR:  strcat(symode, "d");
 							   break;
 				case S_IFIFO:  strcat(symode, "p");
@@ -159,15 +159,30 @@ int main(int argc, char *argv[]){
 			}
 			strcat(symode, (data.st_mode & S_IRUSR) ? "r" : "-");
 			strcat(symode, (data.st_mode & S_IWUSR) ? "w" : "-");
-			strcat(symode, (data.st_mode & S_IXUSR) ? "x" : "-");
+			if (data.st_mode & S_ISUID){
+				strcat(symode, "S");
+			}
+			else{ 
+				strcat(symode, (data.st_mode & S_IXUSR) ? "x" : "-");
+			}
 
 			strcat(symode, (data.st_mode & S_IRGRP) ? "r" : "-");
 			strcat(symode, (data.st_mode & S_IWGRP) ? "w" : "-");
-			strcat(symode, (data.st_mode & S_IXGRP) ? "x" : "-");
+			if (data.st_mode & S_ISGID){
+				strcat(symode, "S");
+			}
+			else{
+				strcat(symode, (data.st_mode & S_IXGRP) ? "x" : "-");
+			}
 
 			strcat(symode, (data.st_mode & S_IROTH) ? "r" : "-");
 			strcat(symode, (data.st_mode & S_IWOTH) ? "w" : "-");
-			strcat(symode, (data.st_mode & S_IXOTH) ? "x" : "-");
+			if (data.st_mode & S_ISVTX){
+				strcat(symode, "S");
+			}
+			else {
+				strcat(symode, (data.st_mode & S_IXOTH) ? "x" : "-");
+			}
 			pid = getpwuid((uintmax_t) data.st_uid);
         	gp = getgrgid(data.st_gid);
 			lt = localtime(&data.st_mtime);
@@ -198,7 +213,7 @@ int main(int argc, char *argv[]){
 		if(fileName != NULL) {
 		char fileNameTrunc[19] = {'\0'};
 		strncpy(fileNameTrunc, fileName, VIKTAR_MAX_FILE_NAME_LEN);
-			ofd = open(fileNameTrunc
+			ofd = open(fileNameTrunc //create or open file if it already exists
 	 			, O_WRONLY | O_TRUNC | O_CREAT);
 			if (ofd < 0){
 				fprintf(stderr, "cannot open %s for output", optarg);
@@ -332,9 +347,7 @@ int main(int argc, char *argv[]){
 				sb.st_atim = data.st_atim;
 				sb.st_mtim = data.st_mtim;
 				sb.st_ctim = data.st_ctim;
-				//fchmod here with st_mode
 				fchmod(ofd, data.st_mode);
-				//futimes with array of both atime and utime
 				times[0] = data.st_atim;
 				times[1] = data.st_mtim;
 				if(futimens(ofd, times) == -1){
